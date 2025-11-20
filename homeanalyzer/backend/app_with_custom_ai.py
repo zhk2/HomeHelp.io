@@ -10,7 +10,7 @@ import tensorflow as tf
 # Import our custom model functions
 import sys
 sys.path.append('.')
-from zillow_ai_model import predict_house_price, load_trained_model
+from homeanalyzer.zillow_ai_model import predict_house_price, load_trained_model
 
 app = Flask(__name__)
 CORS(app)
@@ -361,7 +361,7 @@ def neighborhood_trends():
 def train_model():
     """Endpoint to train/retrain the model"""
     try:
-        from zillow_ai_model import train_model
+        from homeanalyzer.zillow_ai_model import train_model
         model, scaler, le, history = train_model()
         return jsonify({'success': True, 'message': 'Model trained successfully'})
     except Exception as e:

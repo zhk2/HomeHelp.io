@@ -128,8 +128,8 @@ def create_real_estate_model(input_shape):
     # Compile model - adapted for regression
     model.compile(
         optimizer='adam',
-        loss='mse',  # Mean squared error for price prediction
-        metrics=['mae']  # Mean absolute error
+        loss='mean_squared_error',  # Use full name for compatibility
+        metrics=['mean_absolute_error']  # Use full name for compatibility
     )
     
     return model
@@ -205,8 +205,8 @@ def plot_training_history(history):
     ax1.legend()
     
     # MAE curve
-    ax2.plot(history.history['mae'], label='Training MAE')
-    ax2.plot(history.history['val_mae'], label='Validation MAE')
+    ax2.plot(history.history['mean_absolute_error'], label='Training MAE')
+    ax2.plot(history.history['val_mean_absolute_error'], label='Validation MAE')
     ax2.set_title('Model MAE')
     ax2.set_xlabel('Epoch')
     ax2.set_ylabel('MAE')
@@ -223,12 +223,36 @@ def plot_training_history(history):
 def load_trained_model():
     """Load the trained model for use in your Zillow app"""
     import joblib
+    import os
     
-    model = tf.keras.models.load_model('real_estate_model.h5')
-    scaler = joblib.load('scaler.pkl')
-    le = joblib.load('label_encoder.pkl')
-    
-    return model, scaler, le
+    try:
+        # Check if model files exist
+        if not os.path.exists('real_estate_model.h5'):
+            raise FileNotFoundError("Model file not found. Please train the model first.")
+        
+        if not os.path.exists('scaler.pkl'):
+            raise FileNotFoundError("Scaler file not found. Please train the model first.")
+            
+        if not os.path.exists('label_encoder.pkl'):
+            raise FileNotFoundError("Label encoder file not found. Please train the model first.")
+        
+        # Load model with custom objects if needed
+        model = tf.keras.models.load_model(
+            'real_estate_model.h5',
+            custom_objects={
+                'mse': 'mean_squared_error',
+                'mae': 'mean_absolute_error'
+            }
+        )
+        scaler = joblib.load('scaler.pkl')
+        le = joblib.load('label_encoder.pkl')
+        
+        return model, scaler, le
+        
+    except Exception as e:
+        print(f"Error loading trained model: {e}")
+        print("Please train the model first by running the train_model() function")
+        raise e
 
 def predict_house_price(sqft, bedrooms, bathrooms, age, lot_size, garage, property_type, location_score):
     """Predict house price - use this in your Zillow app API"""
@@ -255,19 +279,37 @@ def predict_house_price(sqft, bedrooms, bathrooms, age, lot_size, garage, proper
 # ================================
 
 if __name__ == "__main__":
-    # Train the model
-    model, scaler, le, history = train_model()
+    # Check if model files exist before training
+    import os
     
-    # Test prediction
-    predicted_price = predict_house_price(
-        sqft=2000,
-        bedrooms=3,
-        bathrooms=2,
-        age=10,
-        lot_size=8000,
-        garage=2,
-        property_type='House',
-        location_score=1.2
-    )
-    
-    print(f"Predicted price: ${predicted_price:,.0f}")
+    if not os.path.exists('real_estate_model.h5'):
+        print("No trained model found.")
+        print("Please run 'python train_model_simple.py' first to train the model.")
+        print("Then you can use this script for advanced features.")
+    else:
+        print("Model found! Testing prediction...")
+        
+        try:
+            # Test prediction
+            predicted_price = predict_house_price(
+                sqft=2000,
+                bedrooms=3,
+                bathrooms=2,
+                age=10,
+                lot_size=8000,
+                garage=2,
+                property_type='House',
+                location_score=1.2
+            )
+            
+            print(f"✅ Prediction successful: ${predicted_price:,.0f}")
+            
+            # Optionally retrain
+            retrain = input("Do you want to retrain the model with more data? (y/n): ")
+            if retrain.lower() == 'y':
+                model, scaler, le, history = train_model()
+                
+        except Exception as e:
+            print(f"❌ Prediction failed: {e}")
+            print("The model might be corrupted. Please retrain by running:")
+            print("python train_model_simple.py")
